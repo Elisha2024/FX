@@ -12,9 +12,6 @@ class CurrencyCodeSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=3)
 
 
-# serializers.py
-from rest_framework import serializers
-
 class CurrencyConversionSerializer(serializers.Serializer):
     customer_id = serializers.CharField(required=True)
     input_amount = serializers.FloatField(required=True)

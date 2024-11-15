@@ -1,10 +1,9 @@
-# services.py
 import requests
 from decouple import config
 
 def get_conversion_rate(base_currency, target_currency, amount):
     # Fetch the API key from the .env file
-    api_key = config('ACCESS_TOKEN')  # Ensure your .env file has the key EXCHANGE_API_KEY=<your_api_key>
+    api_key = config('ACCESS_TOKEN')
     
     # Construct the external API URL
     url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{base_currency}"
