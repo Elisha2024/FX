@@ -34,7 +34,6 @@ def get_conversion_rate(base_currency, target_currency, amount):
 
 
 
-
 def get_currency_codes():
     api_key = config('ACCESS_TOKEN') 
     url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/USD"

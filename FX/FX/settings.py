@@ -49,7 +49,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',  # Ensures JWT authentication is used
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',  # Ensures the user is authenticated
+        'rest_framework.permissions.IsAuthenticated',
     ]
 }
 
@@ -57,7 +57,7 @@ from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=5),  # Extend access token lifetime
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Extend refresh token lifetime
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }

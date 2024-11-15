@@ -83,8 +83,6 @@ class CurrencyCodesAPIView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-
-
 class CurrencyConversionAPIView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CurrencyConversionSerializer
