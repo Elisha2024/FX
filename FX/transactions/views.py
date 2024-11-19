@@ -17,6 +17,8 @@ class TransactionListCreateAPIView(ListCreateAPIView):
     """
     queryset = FXTransaction.objects.all()
     serializer_class = FXTransactionSerializer
+    permission_class = [AllowAny]
+    
 
     def get_queryset(self):
         """
@@ -31,6 +33,7 @@ class TransactionDetailAPIView(RetrieveAPIView):
     """
     View to retrieve transactions by customer_id.
     """
+
     queryset = FXTransaction.objects.all()
     serializer_class = FXTransactionSerializer
 
