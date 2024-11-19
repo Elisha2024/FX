@@ -56,7 +56,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=5),  # Extend access token lifetime
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=5),  # Extend access token lifetime
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -106,6 +106,32 @@ DATABASES = {
 }
 
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://redis-19517.c282.east-us-mz.azure.redns.redis-cloud.com:19517',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PASSWORD': 'hEotYKx7LF7fQyTbj7p12mqD2OjTVprj',
+        }
+    }
+}
+
+# import redis
+
+# r = redis.Redis(
+#   host='redis-19517.c282.east-us-mz.azure.redns.redis-cloud.com',
+#   port=19517,
+#   password='hEotYKx7LF7fQyTbj7p12mqD2OjTVprj')
+
+# Optional: This is to ensure Django sessions are stored in Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -148,6 +174,3 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-from decouple import config
-
-ACCESS_TOKEN = config('ACCESS_TOKEN')
