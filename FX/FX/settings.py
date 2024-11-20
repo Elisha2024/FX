@@ -62,6 +62,17 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
+# from datetime import timedelta
+# from decouple import config
+
+# SIMPLE_JWT = {
+#     'ACCESS_TOKEN_LIFETIME': timedelta(days=config('ACCESS_TOKEN_LIFETIME_DAYS', cast=int)),
+#     'REFRESH_TOKEN_LIFETIME': timedelta(days=config('REFRESH_TOKEN_LIFETIME_DAYS', cast=int)),
+#     'ROTATE_REFRESH_TOKENS': True,
+#     'BLACKLIST_AFTER_ROTATION': True,
+# }
+
+
 
 
 MIDDLEWARE = [
@@ -107,25 +118,22 @@ DATABASES = {
 
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+SESSION_CACHE_ALIAS = 'default'                                                                                                                                                                                                                                                                                                                                                                     
+
+from decouple import config
 
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://redis-19517.c282.east-us-mz.azure.redns.redis-cloud.com:19517',
+        'BACKEND': config('REDIS_BACKEND'),
+        'LOCATION': config('REDIS_LOCATION'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': 'hEotYKx7LF7fQyTbj7p12mqD2OjTVprj',
+            'PASSWORD': config('REDIS_PASSWORD'),
         }
     }
 }
 
-# import redis
 
-# r = redis.Redis(
-#   host='redis-19517.c282.east-us-mz.azure.redns.redis-cloud.com',
-#   port=19517,
-#   password='hEotYKx7LF7fQyTbj7p12mqD2OjTVprj')
 
 # Optional: This is to ensure Django sessions are stored in Redis
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
