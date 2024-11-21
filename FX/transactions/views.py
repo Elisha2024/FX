@@ -9,6 +9,9 @@ from .models import FXTransaction, UserCurrencyPreference
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from .utils import build_response
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 import logging
 import time
 
@@ -16,18 +19,6 @@ import time
 # Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-
-def build_response(data=None, errors=None, status_code=status.HTTP_200_OK, message=None):
-    """
-    Utility function to return a standardized response.
-    """
-    return Response({
-        "data": data or {},
-        "errors": errors or {},
-        "status": status_code,
-        "message": message or ''
-    }, status=status_code)
 
 
 class TransactionListCreateAPIView(ListCreateAPIView):
@@ -117,60 +108,6 @@ class CurrencyCodesAPIView(GenericAPIView):
         return build_response(data=serializer.data, message="Currency codes retrieved successfully.")
 
 
-# class CurrencyConversionAPIView(GenericAPIView):
-#     permission_classes = [IsAuthenticated]
-#     serializer_class = CurrencyConversionSerializer
-
-#     def post(self, request, *args, **kwargs):
-#         start_time = time.time()
-
-#         serializer = self.get_serializer(data=request.data)
-#         if not serializer.is_valid():
-#             message = "Invalid data"
-#             logger.error(message)
-#             return build_response(errors={"detail": message}, 
-#                                   status_code=status.HTTP_400_BAD_REQUEST,
-#                                   message="Invalid input data provided.")
-
-#         customer_id = serializer.validated_data['customer_id']
-#         input_amount = serializer.validated_data['input_amount']
-#         input_currency = serializer.validated_data['input_currency']
-#         output_currency = serializer.validated_data['output_currency']
-
-#         cache_key = f"conversion_{customer_id}_{input_currency}_{output_currency}_{input_amount}"
-#         conversion_data = cache.get(cache_key)
-
-#         if conversion_data is None:
-#             conversion_data = get_conversion_rate(input_currency, output_currency, input_amount)
-#             if "error" in conversion_data:
-#                 logger.error(f"Error during currency conversion: {conversion_data}")
-#                 return build_response(errors=conversion_data, 
-#                                       status_code=status.HTTP_400_BAD_REQUEST,
-#                                       message="Error during currency conversion.")
-#             cache.set(cache_key, conversion_data, timeout=600)
-#             logger.info(f"Cache MISS for {cache_key}. Data fetched from external service.")
-
-#             response_data = {
-#                 "customer_id": customer_id,
-#                 "input_currency": input_currency,
-#                 "output_currency": output_currency,
-#                 "input_amount": input_amount,
-#                 "output_amount": conversion_data['converted_amount'],
-#                 "rate": conversion_data['rate']
-#             }
-#             return build_response(data=response_data, message="Conversion successful.")
-#         else:
-#             logger.info(f"Cache HIT for {cache_key}. Data served from cache.")
-#             response_data = {
-#                 "customer_id": customer_id,
-#                 "input_currency": input_currency,
-#                 "output_currency": output_currency,
-#                 "input_amount": input_amount,
-#                 "output_amount": conversion_data['converted_amount'],
-#                 "rate": conversion_data['rate']
-#             }
-#             return build_response(data=response_data, message="Data served from cache.")
-
 
 class CurrencyConversionAPIView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -192,12 +129,22 @@ class CurrencyConversionAPIView(GenericAPIView):
         input_currency = serializer.validated_data['input_currency']
         output_currency = serializer.validated_data['output_currency']
 
-        # Fetch the user's global decimal preference
+        # Check if the user has set preferences
         try:
             user_preference = UserCurrencyPreference.objects.get(user=request.user)
-            decimal_places = user_preference.decimal_places
         except UserCurrencyPreference.DoesNotExist:
-            decimal_places = 2  # Default to 2 decimal places if no preference is set to handle it gracefully   
+            return build_response(errors={"detail": "User currency preferences not set."}, 
+                                  status_code=status.HTTP_400_BAD_REQUEST,
+                                  message="Please set your currency preferences first.")
+
+        # Get the list of preferred pairs for the user
+        preferred_pairs = user_preference.preferred_pairs.values_list('input_currency', 'output_currency')
+
+        # Check if the chosen pair is in the user's preferences
+        if (input_currency, output_currency) not in preferred_pairs:
+            return build_response(errors={"detail": f"Currency pair {input_currency} to {output_currency} not found in your preferences."}, 
+                                  status_code=status.HTTP_400_BAD_REQUEST,
+                                  message="Please add this currency pair to your preferences.")
 
         # Fetch the conversion rate
         cache_key = f"conversion_{customer_id}_{input_currency}_{output_currency}_{input_amount}"
@@ -214,7 +161,7 @@ class CurrencyConversionAPIView(GenericAPIView):
             logger.info(f"Cache MISS for {cache_key}. Data fetched from external service.")
 
             # Round the converted amount to the user's preferred decimal places
-            converted_amount = round(conversion_data['converted_amount'], decimal_places)
+            converted_amount = round(conversion_data['converted_amount'], user_preference.decimal_places)
 
             response_data = {
                 "customer_id": customer_id,
@@ -227,7 +174,7 @@ class CurrencyConversionAPIView(GenericAPIView):
             return build_response(data=response_data, message="Conversion successful.")
         else:
             logger.info(f"Cache HIT for {cache_key}. Data served from cache.")
-            converted_amount = round(conversion_data['converted_amount'], decimal_places)
+            converted_amount = round(conversion_data['converted_amount'], user_preference.decimal_places)
 
             response_data = {
                 "customer_id": customer_id,
@@ -238,6 +185,7 @@ class CurrencyConversionAPIView(GenericAPIView):
                 "rate": conversion_data['rate']
             }
             return build_response(data=response_data, message="Data served from cache.")
+
 
 
 @csrf_exempt  # Only for testing; remove in production
