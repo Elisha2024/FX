@@ -1,0 +1,32 @@
+secret_config.yml
+private_key.pem
+*.env
+
+
+# Ignore the .env file
+.env
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+
+
+# Ignore sensitive files
+secret_config.yml
+private_key.pem
+
+# Ignore environment files
+*.env
+
+# Ignore log files
+*.log
+
+# Ignore temp files
+*.tmp
+
+
+FX/.env
+FX/FX/__pycache__/
+FX/db.sqlite3
+*.pyc
