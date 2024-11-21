@@ -1,7 +1,13 @@
+# Ignore the .env file
 FX/.env
-FX/FX/settings.py
-FX/FX/__pycache__/
+*.env
+
+# Ignore compiled Python files
 *.pyc
+__pycache__/
+
+# Ignore database file
 db.sqlite3
 
-*.env
+# Ignore settings.py if you don't want it tracked (for example, if it contains sensitive data)
+FX/FX/settings.py
