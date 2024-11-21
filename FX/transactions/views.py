@@ -5,7 +5,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.core.cache import cache
 from .serializers import FXTransactionSerializer, CurrencyCodeSerializer, CurrencyConversionSerializer
 from .services import get_currency_codes, get_conversion_rate
-from .models import FXTransaction
+from .models import FXTransaction, UserCurrencyPreference
+from django.core.cache import cache
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 import logging
 import time
 
@@ -114,6 +117,61 @@ class CurrencyCodesAPIView(GenericAPIView):
         return build_response(data=serializer.data, message="Currency codes retrieved successfully.")
 
 
+# class CurrencyConversionAPIView(GenericAPIView):
+#     permission_classes = [IsAuthenticated]
+#     serializer_class = CurrencyConversionSerializer
+
+#     def post(self, request, *args, **kwargs):
+#         start_time = time.time()
+
+#         serializer = self.get_serializer(data=request.data)
+#         if not serializer.is_valid():
+#             message = "Invalid data"
+#             logger.error(message)
+#             return build_response(errors={"detail": message}, 
+#                                   status_code=status.HTTP_400_BAD_REQUEST,
+#                                   message="Invalid input data provided.")
+
+#         customer_id = serializer.validated_data['customer_id']
+#         input_amount = serializer.validated_data['input_amount']
+#         input_currency = serializer.validated_data['input_currency']
+#         output_currency = serializer.validated_data['output_currency']
+
+#         cache_key = f"conversion_{customer_id}_{input_currency}_{output_currency}_{input_amount}"
+#         conversion_data = cache.get(cache_key)
+
+#         if conversion_data is None:
+#             conversion_data = get_conversion_rate(input_currency, output_currency, input_amount)
+#             if "error" in conversion_data:
+#                 logger.error(f"Error during currency conversion: {conversion_data}")
+#                 return build_response(errors=conversion_data, 
+#                                       status_code=status.HTTP_400_BAD_REQUEST,
+#                                       message="Error during currency conversion.")
+#             cache.set(cache_key, conversion_data, timeout=600)
+#             logger.info(f"Cache MISS for {cache_key}. Data fetched from external service.")
+
+#             response_data = {
+#                 "customer_id": customer_id,
+#                 "input_currency": input_currency,
+#                 "output_currency": output_currency,
+#                 "input_amount": input_amount,
+#                 "output_amount": conversion_data['converted_amount'],
+#                 "rate": conversion_data['rate']
+#             }
+#             return build_response(data=response_data, message="Conversion successful.")
+#         else:
+#             logger.info(f"Cache HIT for {cache_key}. Data served from cache.")
+#             response_data = {
+#                 "customer_id": customer_id,
+#                 "input_currency": input_currency,
+#                 "output_currency": output_currency,
+#                 "input_amount": input_amount,
+#                 "output_amount": conversion_data['converted_amount'],
+#                 "rate": conversion_data['rate']
+#             }
+#             return build_response(data=response_data, message="Data served from cache.")
+
+
 class CurrencyConversionAPIView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CurrencyConversionSerializer
@@ -134,6 +192,14 @@ class CurrencyConversionAPIView(GenericAPIView):
         input_currency = serializer.validated_data['input_currency']
         output_currency = serializer.validated_data['output_currency']
 
+        # Fetch the user's global decimal preference
+        try:
+            user_preference = UserCurrencyPreference.objects.get(user=request.user)
+            decimal_places = user_preference.decimal_places
+        except UserCurrencyPreference.DoesNotExist:
+            decimal_places = 2  # Default to 2 decimal places if no preference is set to handle it gracefully   
+
+        # Fetch the conversion rate
         cache_key = f"conversion_{customer_id}_{input_currency}_{output_currency}_{input_amount}"
         conversion_data = cache.get(cache_key)
 
@@ -147,23 +213,43 @@ class CurrencyConversionAPIView(GenericAPIView):
             cache.set(cache_key, conversion_data, timeout=600)
             logger.info(f"Cache MISS for {cache_key}. Data fetched from external service.")
 
+            # Round the converted amount to the user's preferred decimal places
+            converted_amount = round(conversion_data['converted_amount'], decimal_places)
+
             response_data = {
                 "customer_id": customer_id,
                 "input_currency": input_currency,
                 "output_currency": output_currency,
                 "input_amount": input_amount,
-                "output_amount": conversion_data['converted_amount'],
+                "output_amount": converted_amount,  # Rounded result
                 "rate": conversion_data['rate']
             }
             return build_response(data=response_data, message="Conversion successful.")
         else:
             logger.info(f"Cache HIT for {cache_key}. Data served from cache.")
+            converted_amount = round(conversion_data['converted_amount'], decimal_places)
+
             response_data = {
                 "customer_id": customer_id,
                 "input_currency": input_currency,
                 "output_currency": output_currency,
                 "input_amount": input_amount,
-                "output_amount": conversion_data['converted_amount'],
+                "output_amount": converted_amount,  # Rounded result
                 "rate": conversion_data['rate']
             }
             return build_response(data=response_data, message="Data served from cache.")
+
+
+@csrf_exempt  # Only for testing; remove in production
+def list_cache_keys(request):
+    # Get the Redis client
+    redis_client = cache.client.get_client()
+
+    # Fetch keys with a pattern (use '*' for all keys)
+    keys = redis_client.keys('*')  # Adjust pattern if needed
+
+    # Decode keys to strings
+    decoded_keys = [key.decode('utf-8') for key in keys]
+
+    # Return the keys as a JSON response
+    return JsonResponse({'keys': decoded_keys})

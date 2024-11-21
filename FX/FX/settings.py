@@ -37,10 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'transactions',
     'rest_framework',
     'rest_framework_simplejwt',
-
+    'transactions.apps.TransactionsConfig',
 ]
 
 
@@ -61,6 +60,16 @@ REST_FRAMEWORK = {
 # environ.Env.read_env()
 
 
+
+from datetime import timedelta
+from decouple import config
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=config('ACCESS_TOKEN_LIFETIME_DAYS', cast=int)),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('REFRESH_TOKEN_LIFETIME_DAYS', cast=int)),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
 
 from datetime import timedelta
 from decouple import config
