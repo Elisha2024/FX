@@ -1,89 +1,117 @@
 from rest_framework import status
-from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveAPIView, GenericAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.core.cache import cache
 from .serializers import FXTransactionSerializer, CurrencyCodeSerializer, CurrencyConversionSerializer
-from .services import get_currency_codes
-from rest_framework.generics import GenericAPIView
-from .services import get_conversion_rate
-from rest_framework import serializers
+from .services import get_currency_codes, get_conversion_rate
 from .models import FXTransaction
-import requests
+import logging
+import time
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+
+def build_response(data=None, errors=None, status_code=status.HTTP_200_OK, message=None):
+    """
+    Utility function to return a standardized response.
+    """
+    return Response({
+        "data": data or {},
+        "errors": errors or {},
+        "status": status_code,
+        "message": message or ''
+    }, status=status_code)
 
 
 class TransactionListCreateAPIView(ListCreateAPIView):
-    """
-    View to list all transactions and create a new transaction.
-    """
     queryset = FXTransaction.objects.all()
     serializer_class = FXTransactionSerializer
-    permission_class = [AllowAny]
-    
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
-        """
-        Optionally filter the queryset by customer_id.
-        """
         customer_id = self.request.query_params.get('customer_id', None)
         if customer_id:
-            return FXTransaction.objects.filter(customer_id=customer_id)
+            cache_key = f"transactions_customer_{customer_id}"
+            transactions = cache.get(cache_key)
+            if transactions is None:
+                transactions = list(FXTransaction.objects.filter(customer_id=customer_id).values())
+                cache.set(cache_key, transactions, timeout=600)  # Cache for 10 minutes
+                logger.info(f"Cache MISS for key: {cache_key}")
+            else:
+                logger.info(f"Cache HIT for key: {cache_key}")
+            return transactions
         return super().get_queryset()
 
-class TransactionDetailAPIView(RetrieveAPIView):
-    """
-    View to retrieve transactions by customer_id.
-    """
+    def handle_error(self, message, status_code):
+        logger.error(f"Error: {message}")
+        return build_response(errors={"detail": message}, status_code=status_code, message=message)
 
+
+class TransactionDetailAPIView(RetrieveAPIView):
     queryset = FXTransaction.objects.all()
     serializer_class = FXTransactionSerializer
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        """
-        Handle GET request to retrieve transactions by customer_id.
-        """
-        customer_id = kwargs.get('customer_id')  # Get 'customer_id' from URL
-        transactions = FXTransaction.objects.filter(customer_id=customer_id)
+        customer_id = kwargs.get('customer_id')
+        cache_key = f"transaction_detail_{customer_id}"
+        transactions = cache.get(cache_key)
 
-        if not transactions.exists():
-            return Response({"detail": "Transactions not found for the given customer_id."}, status=status.HTTP_404_NOT_FOUND)
+        if transactions is None:
+            transactions = FXTransaction.objects.filter(customer_id=customer_id)
+            if not transactions.exists():
+                message = "Transactions not found for the given customer_id."
+                logger.warning(message)
+                return build_response(errors={"detail": message}, status_code=status.HTTP_404_NOT_FOUND, message=message)
+            serialized_data = self.get_serializer(transactions, many=True).data
+            cache.set(cache_key, serialized_data, timeout=600)
+        else:
+            serialized_data = transactions
 
-        serializer = self.get_serializer(transactions, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        logger.info(f"Transactions retrieved successfully for customer_id: {customer_id}")
+        return build_response(data=serialized_data, message="Transactions successfully retrieved.")
 
 
+# Currency Codes API View with Error Handling and Logging
 class CurrencyCodesAPIView(GenericAPIView):
-    """
-    View to return a list of available currency codes from an external API.
-    """
     serializer_class = CurrencyCodeSerializer
-    permission_classes = [AllowAny]  # No authentication required
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
-        """
-        Override to return the currencies fetched from the external API via the service.
-        """
-        # Fetch currencies from the external API using the service
-        currency_data = get_currency_codes()
-        
-        if "error" in currency_data:
-            return []  # Return an empty list if there is an error
-        
-        return [{"code": currency} for currency in currency_data["currencies"]]
+        cache_key = "currency_codes"
+        start_time = time.time()
+        currency_data = cache.get(cache_key)
+
+        if currency_data is None:
+            logger.info("Cache MISS for key: %s", cache_key)
+            currency_data = get_currency_codes()
+            if "error" not in currency_data:
+                cache.set(cache_key, currency_data, timeout=86400)  # Cache for 1 day
+            else:
+                logger.error("Error fetching currency codes from external API.")
+                return []  # Return an empty list if there is an error
+        else:
+            logger.info("Cache HIT for key: %s", cache_key)
+
+        end_time = time.time()
+        logger.info("Time taken to fetch data: %.2f seconds", end_time - start_time)
+        return [{"code": currency} for currency in currency_data.get("currencies", [])]
 
     def get(self, request, *args, **kwargs):
-        # Get the currencies via the overridden get_queryset method
         queryset = self.get_queryset()
-
         if not queryset:
-            return Response(
-                {"detail": "Failed to retrieve currency codes."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+            logger.warning("Failed to retrieve currency codes.")
+            return build_response(errors={"detail": "Failed to retrieve currency codes."},
+                                  status_code=status.HTTP_400_BAD_REQUEST,
+                                  message="Error fetching currency codes.")
         serializer = self.get_serializer(data=queryset, many=True)
-        serializer.is_valid()  # Ensure the data is valid
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer.is_valid()
+        logger.info("Currency codes successfully retrieved and serialized.")
+        return build_response(data=serializer.data, message="Currency codes retrieved successfully.")
 
 
 class CurrencyConversionAPIView(GenericAPIView):
@@ -91,42 +119,51 @@ class CurrencyConversionAPIView(GenericAPIView):
     serializer_class = CurrencyConversionSerializer
 
     def post(self, request, *args, **kwargs):
-        # Deserialize incoming data
+        start_time = time.time()
+
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            return Response({"detail": "Invalid data"}, status=status.HTTP_400_BAD_REQUEST)
+            message = "Invalid data"
+            logger.error(message)
+            return build_response(errors={"detail": message}, 
+                                  status_code=status.HTTP_400_BAD_REQUEST,
+                                  message="Invalid input data provided.")
 
-        # Extract validated data
         customer_id = serializer.validated_data['customer_id']
         input_amount = serializer.validated_data['input_amount']
         input_currency = serializer.validated_data['input_currency']
         output_currency = serializer.validated_data['output_currency']
 
-        # Call the service to get the conversion data
-        conversion_data = get_conversion_rate(input_currency, output_currency, input_amount)
+        cache_key = f"conversion_{customer_id}_{input_currency}_{output_currency}_{input_amount}"
+        conversion_data = cache.get(cache_key)
 
-        # Handle error from the service
-        if "error" in conversion_data:
-            return Response(conversion_data, status=status.HTTP_400_BAD_REQUEST)
+        if conversion_data is None:
+            conversion_data = get_conversion_rate(input_currency, output_currency, input_amount)
+            if "error" in conversion_data:
+                logger.error(f"Error during currency conversion: {conversion_data}")
+                return build_response(errors=conversion_data, 
+                                      status_code=status.HTTP_400_BAD_REQUEST,
+                                      message="Error during currency conversion.")
+            cache.set(cache_key, conversion_data, timeout=600)
+            logger.info(f"Cache MISS for {cache_key}. Data fetched from external service.")
 
-        # Store conversion in the database
-        conversion_record = FXTransaction.objects.create(
-            customer_id=customer_id,
-            input_amount=input_amount,
-            input_currency=input_currency,
-            output_amount=conversion_data['converted_amount'],
-            output_currency=output_currency
-        )
-
-        # Prepare the response data
-        response_data = {
-            "customer_id": customer_id,
-            "input_currency": input_currency,
-            "output_currency": output_currency,
-            "input_amount": input_amount,
-            "output_amount": conversion_data['converted_amount'],
-            "rate": conversion_data['rate']
-        }
-
-        # Return successful response with conversion details
-        return Response(response_data, status=status.HTTP_200_OK)
+            response_data = {
+                "customer_id": customer_id,
+                "input_currency": input_currency,
+                "output_currency": output_currency,
+                "input_amount": input_amount,
+                "output_amount": conversion_data['converted_amount'],
+                "rate": conversion_data['rate']
+            }
+            return build_response(data=response_data, message="Conversion successful.")
+        else:
+            logger.info(f"Cache HIT for {cache_key}. Data served from cache.")
+            response_data = {
+                "customer_id": customer_id,
+                "input_currency": input_currency,
+                "output_currency": output_currency,
+                "input_amount": input_amount,
+                "output_amount": conversion_data['converted_amount'],
+                "rate": conversion_data['rate']
+            }
+            return build_response(data=response_data, message="Data served from cache.")

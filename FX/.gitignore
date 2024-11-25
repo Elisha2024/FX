@@ -1,10 +1,21 @@
 # Ignore the .env file
+.env
 FX/.env
 *.env
 
-# Ignore compiled Python files
-*.pyc
+# Ignore Python bytecode
 __pycache__/
+*.pyc
+
+# Ignore sensitive files
+secret_config.yml
+private_key.pem
+
+# Ignore log files
+*.log
+
+# Ignore temp files
+*.tmp
 
 # Ignore database file
 db.sqlite3
