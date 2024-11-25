@@ -5,9 +5,5 @@ from .models import UserCurrencyPreference
 
 @receiver(post_save, sender=User)
 def create_user_currency_preference(sender, instance, created, **kwargs):
-    """
-    Create a UserCurrencyPreference instance when a User is created.
-    This signal is triggered after a new User is saved.
-    """
     if created:
-        UserCurrencyPreference.objects.create(user=instance)
+        UserCurrencyPreference.objects.create(user=instance, decimal_places=2)

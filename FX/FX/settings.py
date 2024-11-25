@@ -37,10 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'transactions',
     'rest_framework',
     'rest_framework_simplejwt',
-
+    'transactions.apps.TransactionsConfig',
 ]
 
 
@@ -53,11 +52,21 @@ REST_FRAMEWORK = {
     ]
 }
 
+# import os
+# import environ
+
+# # Initialize environment variables
+# env = environ.Env()
+# environ.Env.read_env()
+
+
+
 from datetime import timedelta
+from decouple import config
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=5),  # Extend access token lifetime
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=config('ACCESS_TOKEN_LIFETIME_DAYS', cast=int)),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('REFRESH_TOKEN_LIFETIME_DAYS', cast=int)),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
@@ -120,23 +129,68 @@ DATABASES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'                                                                                                                                                                                                                                                                                                                                                                     
 
-from decouple import config
 
-CACHES = {
-    'default': {
-        'BACKEND': config('REDIS_BACKEND'),
-        'LOCATION': config('REDIS_LOCATION'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': config('REDIS_PASSWORD'),
-        }
-    }
-}
+# from decouple import config
 
+# CACHES = {
+#     'default': {
+#         'BACKEND': config('REDIS_BACKEND'),
+#         'LOCATION': config('REDIS_LOCATION'), 
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'PASSWORD': config('REDIS_PASSWORD', default=None),  
+#         }
+#     }
+# }
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://redis-19517.c282.east-us-mz.azure.redns.redis-cloud.com:19517/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'PASSWORD': 'hEotYKx7LF7fQyTbj7p12mqD2OjTVprj',
+#             'SOCKET_TIMEOUT': 30,  # Increased timeout
+#             'SOCKET_CONNECT_TIMEOUT': 30,  # Increased connection timeout
+#         },
+#     }
+# }
+
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://:53pK2CGgIguZNNNCUk4itPNUyoDx8IES@redis-13028.c276.us-east-1-2.ec2.redns.redis-cloud.com:13028/0',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#         }
+#     }
+# }
+
+# settings.py
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://redis-13028.c276.us-east-1-2.ec2.redns.redis-cloud.com:13028/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'PASSWORD': '53pK2CGgIguZNNNCUk4itPNUyoDx8IES',
+#         }
+#     }
+# }
+
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',  # Use DummyCache instead of Redis
+#     }
+# }
 
 
 # Optional: This is to ensure Django sessions are stored in Redis
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+# SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'default'
 
 

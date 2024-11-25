@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import list_cache_keys
 from .views import TransactionListCreateAPIView, TransactionDetailAPIView, CurrencyCodesAPIView, CurrencyConversionAPIView
 
 urlpatterns = [
@@ -6,6 +7,6 @@ urlpatterns = [
     path('api/transactions/customer/<str:customer_id>/', TransactionDetailAPIView.as_view(), name='transaction-detail-by-customer'),
     path('api/currencies/', CurrencyCodesAPIView.as_view(), name='currency-codes'),
     path('api/currency/convert/', CurrencyConversionAPIView.as_view(), name='currency-convert'),
-
+        path('api/keys/', list_cache_keys, name='list_cache_keys'),
 ]
 
