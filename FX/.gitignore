@@ -1,23 +1,15 @@
-secret_config.yml
-private_key.pem
-*.env
-
-
 # Ignore the .env file
 .env
+FX/.env
+*.env
 
 # Ignore Python bytecode
 __pycache__/
 *.pyc
 
-
-
 # Ignore sensitive files
 secret_config.yml
 private_key.pem
-
-# Ignore environment files
-*.env
 
 # Ignore log files
 *.log
@@ -25,8 +17,8 @@ private_key.pem
 # Ignore temp files
 *.tmp
 
+# Ignore database file
+db.sqlite3
 
-FX/.env
-FX/FX/__pycache__/
-FX/db.sqlite3
-*.pyc
+# Ignore settings.py if you don't want it tracked (for example, if it contains sensitive data)
+FX/FX/settings.py
