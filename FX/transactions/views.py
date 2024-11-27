@@ -16,9 +16,8 @@ import logging
 import time
 
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('django.request')
+
 
 
 class TransactionListCreateAPIView(ListCreateAPIView):

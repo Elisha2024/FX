@@ -236,3 +236,121 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+
+
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Define FORMATTERS as a dictionary
+FORMATTERS = {
+    "verbose": {
+        "format": "{levelname} {asctime:s} {threadName} {thread:d} {module} {filename} {lineno:d} {name} {funcName} {process:d} {message}",
+        "style": "{",
+    },
+    "simple": {
+        "format": "{levelname} {asctime:s} {module} {filename} {lineno:d} {funcName} {message}",
+        "style": "{",
+    },
+}
+
+# Define HANDLERS
+HANDLERS = {
+    "console_handler": {
+        "class": "logging.StreamHandler",
+        "formatter": "simple",
+    },
+    "my_handler": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": os.path.join(BASE_DIR, "logs", "error.log"),
+        "mode": "a",
+        "encoding": "utf-8",
+        "formatter": "simple",
+        "backupCount": 5,
+        "maxBytes": 1024 * 1024 * 5,  # 5 MB
+    },
+    "my_handler_detailed": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": os.path.join(BASE_DIR, "logs", "application.log"),
+        "mode": "a",
+        "formatter": "verbose",
+        "backupCount": 5,
+        "maxBytes": 1024 * 1024 * 5,  # 5 MB
+    },
+}
+
+# Define FORMATTERS with JSON-like error formatting
+FORMATTERS = {
+    "verbose": {
+        "format": "{levelname} {asctime} {module} {message}",
+        "style": "{",
+    },
+}
+
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Ensure the logs directory exists
+logs_dir = os.path.join(BASE_DIR, "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Formatters
+FORMATTERS = {
+    "verbose": {
+        "format": "{levelname} {asctime:s} {threadName} {thread:d} {module} {filename} {lineno:d} {name} {funcName} {process:d} {message}",
+        "style": "{",
+    },
+    "simple": {
+        "format": "{levelname} {asctime:s} {module} {filename} {lineno:d} {funcName} {message}",
+        "style": "{",
+    },
+}
+
+# Handlers
+HANDLERS = {
+    "console_handler": {
+        "class": "logging.StreamHandler",
+        "formatter": "simple",
+    },
+    "my_handler": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": os.path.join(logs_dir, "error_logs.log"),
+        "mode": "a",
+        "encoding": "utf-8",
+        "formatter": "simple",
+        "backupCount": 5,
+        "maxBytes": 1024 * 1024 * 5,  # 5 MB
+    },
+    "my_handler_detailed": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": os.path.join(logs_dir, "application_logs.log"),
+        "mode": "a",
+        "formatter": "verbose",
+        "backupCount": 5,
+        "maxBytes": 1024 * 1024 * 5,  # 5 MB
+    },
+}
+
+# Loggers
+LOGGERS = {
+    "django": {
+        "handlers": ["console_handler", "my_handler_detailed"],
+        "level": "INFO",
+        "propagate": False,
+    },
+    "django.request": {
+        "handlers": ["my_handler"],
+        "level": "ERROR",
+        "propagate": False,
+    },
+}
+
+# Logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": FORMATTERS,
+    "handlers": HANDLERS,
+    "loggers": LOGGERS,
+}
